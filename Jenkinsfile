@@ -1,6 +1,10 @@
 pipeline {
     agent any
 
+    parameters {
+        booleanParam(name: 'RUN_TESTS', defaultValue: true, description: 'Run test stage?')
+    }
+
     environment {
         PYTHON_VERSION = "3.10"
     }
@@ -43,6 +47,9 @@ pipeline {
         }
 
         stage('Run Tests') {
+            when {
+                expression { params.RUN_TESTS == true }
+            }
             steps {
                 sh '''
                 . venv/bin/activate
@@ -52,6 +59,9 @@ pipeline {
         }
 
         stage('Coverage Report') {
+            when {
+                expression { params.RUN_TESTS == true }
+            }
             steps {
                 sh '''
                 . venv/bin/activate
