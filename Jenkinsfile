@@ -1,79 +1,70 @@
 pipeline {
     agent any
 
-    parameters {
-        booleanParam(name: 'RUN_TESTS', defaultValue: true, description: 'Run test stage?')
-    }
-
     environment {
         PYTHON_VERSION = "3.10"
+        VENV = "${WORKSPACE}/venv"
     }
 
     stages {
-        stage('Checkout') {
-            steps {
-                checkout scm
-            }
-        }
 
         stage('Setup Python') {
             steps {
                 sh '''
                 python3 --version
                 python3 -m venv venv
-                . venv/bin/activate
-                python -m pip install --upgrade pip
                 '''
             }
         }
 
         stage('Install Dependencies') {
             steps {
-                sh '''
-                . venv/bin/activate
-                if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
-                pip install ruff pytest coverage
-                '''
+                withEnv(["PATH=${VENV}/bin:$PATH"]) {
+                    sh '''
+                    python -m pip install --upgrade pip
+                    if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+                    pip install ruff pytest coverage
+                    '''
+                }
             }
         }
 
         stage('Lint with Ruff') {
             steps {
-                sh '''
-                . venv/bin/activate
-                ruff --format=github --target-version=py310 . 
-                '''
+                withEnv(["PATH=${VENV}/bin:$PATH"]) {
+                    catchError(buildResult: 'SUCCESS', stageResult: 'FAILURE') {
+                        sh 'ruff check . --output-format=github --target-version=py310'
+                    }
+                }
             }
         }
 
         stage('Run Tests') {
-            when {
-                expression { params.RUN_TESTS == true }
-            }
             steps {
-                sh '''
-                . venv/bin/activate
-                coverage run -m pytest -v -s
-                '''
+                withEnv(["PATH=${VENV}/bin:$PATH"]) {
+                    sh 'coverage run -m pytest -v -s'
+                }
             }
         }
 
         stage('Coverage Report') {
-            when {
-                expression { params.RUN_TESTS == true }
-            }
             steps {
-                sh '''
-                . venv/bin/activate
-                coverage report -m
-                '''
+                withEnv(["PATH=${VENV}/bin:$PATH"]) {
+                    sh 'coverage report -m'
+                }
             }
         }
     }
 
     post {
         always {
-            echo 'Pipeline finished.'
+            echo 'Pipeline completed!'
+        }
+        success {
+            echo 'Build SUCCESS'
+        }
+        failure {
+            echo 'Build FAILED'
         }
     }
 }
