@@ -41,7 +41,7 @@ pipeline {
             steps {
                 sh '''
                 . venv/bin/activate
-                ruff --format=github --target-version=py310 . || true
+                ruff --format=github --target-version=py310 . 
                 '''
             }
         }
